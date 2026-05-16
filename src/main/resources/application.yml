@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: ai-ops-dashboard
+
+  profiles:
+    active: dev
+
+  # ── Database ───────────────────────────────────────────────────────────────
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: AiDashboardPool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 30000
+      connection-timeout: 20000
+      max-lifetime: 1800000
+
+  # ── JPA ───────────────────────────────────────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: none      # tắt hoàn toàn, không "validate" schema
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: public
+    open-in-view: false
+
+  # ── Flyway ────────────────────────────────────────────────────────────────
+  flyway:
+    enabled: false          # tắt tạm, chưa cần migrate
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    out-of-order: false
+
+  # ── Jackson (JSON) ────────────────────────────────────────────────────────
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: UTC
+    mapper:
+      default-view-inclusion: false
+
+# ── Server ──────────────────────────────────────────────────────────────────
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json
+  error:
+    include-message: never
+    include-stacktrace: never
+
+# ── Actuator (dùng cho Docker HEALTHCHECK) ──────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+
+# ── App custom config ────────────────────────────────────────────────────────
+app:
+  # JWT
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-ms: 86400000
+
+  # Mã hoá API key lưu vào DB
+  encryption:
+    key: ${ENCRYPTION_KEY}
+
+  # WebClient timeout khi gọi AI providers
+  webclient:
+    connect-timeout-ms: 5000
+    read-timeout-ms: 60000
+
+  # Scheduler
+  scheduler:
+    metrics-aggregation-cron: "0 0 1 * * *"   # 1:00 AM mỗi ngày
+    alert-check-cron: "0 0 8 * * *"           # 8:00 AM mỗi ngày

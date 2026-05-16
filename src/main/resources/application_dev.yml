@@ -1,0 +1,64 @@
+# ── Profile: dev ─────────────────────────────────────────────────────────────
+# Dùng khi SPRING_PROFILES_ACTIVE=dev (local docker compose)
+# Override các giá trị từ application.yml
+
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/${POSTGRES_DB:ai_dashboard}
+    username: ${POSTGRES_USER:ai_user}
+    password: ${POSTGRES_PASSWORD:ai_user_password_dev_only}
+    hikari:
+      maximum-pool-size: 5
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        ddl-auto: none #Thêm để test
+        format_sql: true
+
+  flyway:
+    enabled: false # Thêm để test
+    #locations: classpath:db/migration
+
+# ── Server ───────────────────────────────────────────────────────────────────
+server:
+  error:
+    include-message: always
+    include-stacktrace: always
+
+# ── Actuator (mở rộng khi dev) ───────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    com.aidashboard: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type: TRACE
+    org.springframework.security: DEBUG
+    org.flywaydb: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# ── App ───────────────────────────────────────────────────────────────────────
+app:
+  jwt:
+    secret: dev-secret-key-for-local-only-not-production-32c
+    expiration-ms: 604800000
+  encryption:
+    key: dev-encryption-key-32ch!
+  webclient:
+    connect-timeout-ms: 10000
+    read-timeout-ms: 120000
+  scheduler:
+    metrics-aggregation-cron: "0 * * * * *"   # mỗi phút (test nhanh)
+    alert-check-cron: "0 * * * * *"           # mỗi phút (test nhanh)

@@ -1,0 +1,90 @@
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai-dashboard-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ai-dashboard-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Spring Boot Backend ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-dashboard-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL:      jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_FLYWAY_ENABLED:      "true"
+      SPRING_FLYWAY_LOCATIONS:    classpath:db/migration
+      SPRING_PROFILES_ACTIVE:     dev
+      JWT_SECRET:                 ${JWT_SECRET}
+      ENCRYPTION_KEY:             ${ENCRYPTION_KEY}
+    networks:
+      - ai-dashboard-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Ollama (local AI, free, no API key) ───────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-dashboard-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - ai-dashboard-net
+
+  # ── pgAdmin (optional DB GUI) ─────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ai-dashboard-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "5050:80"
+    networks:
+      - ai-dashboard-net
+    depends_on:
+      - postgres
+    profiles:
+      - tools   # chỉ start khi chạy: docker compose --profile tools up
+
+networks:
+  ai-dashboard-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  ollama_data:

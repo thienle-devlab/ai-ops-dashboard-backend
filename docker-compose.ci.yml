@@ -1,0 +1,35 @@
+# docker-compose.ci.yml — used in GitLab CI pipeline
+# Usage: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+#
+# Differences from dev:
+#   - No Ollama (not needed for unit/integration tests)
+#   - No pgAdmin
+#   - SPRING_FLYWAY_LOCATIONS chỉ chạy versioned migrations (bỏ R1 seed)
+#   - Healthcheck nhanh hơn để CI không chờ lâu
+
+services:
+
+  postgres:
+    healthcheck:
+      # 'test' bắt buộc phải khai báo lại khi override healthcheck block
+      # Docker không merge từng key riêng lẻ — phải ghi đầy đủ cả block
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai_user} -d ${POSTGRES_DB:-ai_dashboard}" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: ci
+      # Chỉ chạy file V*.sql, bỏ qua R1__seed_dev_data.sql
+      # Flyway nhận list locations cách nhau dấu phẩy
+      SPRING_FLYWAY_LOCATIONS: classpath:db/migration
+      SPRING_FLYWAY_REPEATABLE_SQL_MIGRATION_PREFIX: "#"   # vô hiệu hoá prefix R
+    # Không expose port ra ngoài trong CI
+    ports: []
+
+  ollama:
+    # Tắt hoàn toàn Ollama trong CI — đặt vào profile không ai gọi
+    profiles:
+      - disabled
